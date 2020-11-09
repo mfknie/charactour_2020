@@ -12,19 +12,47 @@ def import_data(file):
 def write_data(df, name):
     df.to_csv("data/"+name+".csv", index=False)
 
-def write_data_incr(df):
+def write_data_incr(df, name):
     df.to_csv("data/"+name+".csv", index=False, mode="a")
+
+
+
+# %%
+class mysql_pd:
+    def __init__(self, info=None):
+        if(info is None):
+            print("No config specified")
+            return None
+        self.connect_str = "mysql+mysqlconnector://{0}:{1}@{2}/{3}".format(
+            info.config("username"), 
+            info.config("password"), 
+            "localhost",
+            info.config("MYSQL_DB"))
+        self.engine = sqlalchemy.create_engine(self.connect_str)
+        self.conn = None
+    
+    def connect(self):
+        self.conn = self.engine.connect()
+        return self.conn
+
+    def disconnect(self):
+        self.conn.close()
+        self.conn = None
+
+    def get_query(self, *args):
+        query_dfs = []
+        for query in args:
+            cur_df = pd.read_sql(sql = query, con = self.conn)
+            query_dfs.append(cur_df)
+        return pd.concat(query_dfs)
+
+
+    
+
 
 # %%
 if __name__ == "__main__":
-    # %%
-    connect_str = "mysql+mysqlconnector://{0}:{1}@{2}/{3}".format(
-        App.config("username"), 
-        App.config("password"), 
-        "localhost",
-        App.config("MYSQL_DB"))
-    engine = sqlalchemy.create_engine(connect_str)
-    
+
     # %%
     chr_genre_query = ("""select characters.id, characters.fullname, genres.genre 
         from characters inner join genres on characters.genres LIKE genres.id;
@@ -35,21 +63,14 @@ if __name__ == "__main__":
     """)
     user_traits_query = ("""select * from usertraits""")
     user_likes_query = ("""select * from likeable_likes where likable_type = "character" """)
-    
-# %%
-    genre_df = None
-# %%
-    conn = engine.connect()
-# %%
-    with engine.connect() as conn:
+    char_info = ("""select id, fullname, like_count, traits from characters""")
+    traits_info = ("""select * from similartraits;""")
+
 # %%    
-        write_data(pd.read_sql(sql = chr_genre_query, con = conn), "char_genre")
-        write_data(pd.read_sql(sql = movie_genre_query, con = conn), "movie_genres")
-        write_data(pd.read_sql(sql = user_traits_query, con = conn), "user_traits")
-        write_data(pd.read_sql(sql = user_likes_query, con = conn), "user_likes_chars")
-
-# %%
-# for VSscode jupyter
-    conn.close()
-
-# %%
+    db_conn = mysql_pd(App)
+    db_conn.connect()
+    write_data(db_conn.get_query(chr_genre_query), "char_genre")
+    write_data(db_conn.get_query(movie_genre_query), "movie_genres")
+    write_data(db_conn.get_query(user_traits_query), "user_traits")
+    write_data(db_conn.get_query(user_likes_query), "user_likes_chars")
+    db_conn.disconnect()
