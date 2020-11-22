@@ -45,8 +45,6 @@ class mysql_pd:
             cur_df = pd.read_sql(sql = query, con = self.conn)
             query_dfs.append(cur_df)
         return pd.concat(query_dfs)
-
-
     
 
 
@@ -65,12 +63,15 @@ if __name__ == "__main__":
     user_likes_query = ("""select * from likeable_likes where likable_type = "character" """)
     char_info = ("""select id, fullname, like_count, traits from characters""")
     traits_info = ("""select * from similartraits;""")
+    user_info = (""" select id, first_name, last_name, has_liked, pronoun_id from users; """)
 
 # %%    
     db_conn = mysql_pd(App)
     db_conn.connect()
-    write_data(db_conn.get_query(chr_genre_query), "char_genre")
-    write_data(db_conn.get_query(movie_genre_query), "movie_genres")
-    write_data(db_conn.get_query(user_traits_query), "user_traits")
+    #write_data(db_conn.get_query(chr_genre_query), "char_genre")
+    #write_data(db_conn.get_query(movie_genre_query), "movie_genres")
+    #write_data(db_conn.get_query(user_traits_query), "user_traits")
     write_data(db_conn.get_query(user_likes_query), "user_likes_chars")
     db_conn.disconnect()
+
+# %%

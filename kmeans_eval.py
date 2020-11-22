@@ -1,6 +1,8 @@
 # %%
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm 
 # %%
 from sklearn.cluster import DBSCAN, KMeans, AgglomerativeClustering
 from sklearn.decomposiiton import PCA
@@ -68,13 +70,4 @@ def kmeans_clusters(X, n_clusters = None):
                     "with n_clusters = {:d}".format(n_clusters)),
                     fontsize=20, fontweight='bold')
         
-# Basic PCA, data processing stuff here
-def find_pcs(data):
-    scaled_data = StandardScaler().fit_transform(data)
-    pca = PCA(n_components=0.95)
-    pca.fit(data)
-    components = pd.DataFrame(pca.components_, columns = cols) 
-    components["var_explained"] = pca.explained_variance_ratio_
-    return components
-    
 if __name__ == "__main__":
