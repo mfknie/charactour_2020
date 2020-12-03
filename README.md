@@ -30,7 +30,7 @@ __Incomplete__:
 * `genre_percent_cluster.ipynb` contains Kmeans clustering on the Romance genre, with the ability to filter data based off percentage of likes users devoted to X genre and the number of total likes (to avoid low quality data)
     + Used automated parameter search to find optimal number of clusters and best minimum pecentage/minimum number of likes to set as bounds    
 
-The remaining notebooks much less progress so far:  
+The remaining notebooks contain much less progress so far:  
 * `agg_genre_5-01-2020.ipynb` will contain some clustering on aggregate data for characters from X genre, using data from popular characters on the site as of 05/01/2020
 * `genre_classication.ipynb` will be an experiment to see how well an ensemble classifier would work in predicting genres that users may become fans of (i.e. more precisely, they may become fans of, or like characters from those genres), based off their trait data (may need to look into http://scikit.ml/index.html to help deal with large number of labels, if there was a desire to predict characters directly) 
 

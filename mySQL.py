@@ -39,14 +39,23 @@ class mysql_pd:
         self.conn.close()
         self.conn = None
 
-    def get_query(self, *args):
+    def get_query(self, *args, once=True):
+        if(once):
+            self.connect()
         query_dfs = []
         for query in args:
             cur_df = pd.read_sql(sql = query, con = self.conn)
             query_dfs.append(cur_df)
+        if(once):
+            self.disconnect()
         return pd.concat(query_dfs)
     
-
+    def write_table(self, df, table_name, once=True):
+        if(once):
+            self.connect()
+        df.to_sql(name = table_name, con = self.conn, if_exists="replace")
+        if(once):
+            self.disconnect()
 
 # %%
 if __name__ == "__main__":
@@ -67,11 +76,11 @@ if __name__ == "__main__":
 
 # %%    
     db_conn = mysql_pd(App)
-    db_conn.connect()
+    #db_conn.connect()
     #write_data(db_conn.get_query(chr_genre_query), "char_genre")
     #write_data(db_conn.get_query(movie_genre_query), "movie_genres")
     #write_data(db_conn.get_query(user_traits_query), "user_traits")
     write_data(db_conn.get_query(user_likes_query), "user_likes_chars")
-    db_conn.disconnect()
+    #db_conn.disconnect()
 
 # %%
