@@ -2,7 +2,7 @@
 import pandas as pd 
 import numpy as np 
 import argparse
-from scipy.sparse import csr_matrix
+from scipy.sparse import lil_matrix
 import datetime
 import mySQL
 from sklearn.model_selection import train_test_split
@@ -19,6 +19,31 @@ class PerctAction(argparse.Action):
         setattr(namespace, self.dest, values)
 
 # %%
+def handle_args():
+    '''
+    Helper function to handle arguments using argparse module
+    '''
+    parser = argparse.ArgumentParser(description="Evaluates cosine similarity predictions for selected metric")
+    parser.add_argument("--pred", required=True, help = "Predictions from cosine similarity")
+    parser.add_argument("--likes", required=True, help = "File with character likes - use as ground truth")
+    parser.add_argument("--sample", type = float, default = 1.0, help = "Percentage of users to evaluate over", action=PerctAction)
+    parser.add_argument("--type", 
+        required = True, 
+        choices = ["top_n", "percentile"], 
+        help = "Type of evaluation to perform - compare top n characters predicted or look at cosine similarities of liked characters")
+    parser.add_argument("--num_chrs", 
+        required = "--type" in sys.argv, 
+        type = int, 
+        default = 5, 
+        help = "Number of characters to consider")
+    parser.add_argument("--m", 
+        required = "--type" in sys.argv, 
+        default = "F1", 
+        choices = ["F1", "Hamming", "Jaccard"], 
+        help = "Stats metrics to use")
+    return parser.parse_args()
+
+# %%
 def top_n_keys(x, col, n=5):
     '''
     Return top n
@@ -30,77 +55,38 @@ def top_n_keys(x, col, n=5):
     '''
     return [i for i, j in Counter(x[col]).most_common(5)]
 
- 
-
-# %% 
-def make_generator(parameters):
-    '''
-    Generate iterator for combinations of ml parameters
-    Input: 
-    parameters - dictionary, where keys are parameters and values are lists of values to try
-    Output: Iterable where each output is a dictionary of a particular combination of parameters
-    '''
-    if not parameters:
-        yield dict()
-    else:
-        key_to_iterate = list(parameters.keys())[0]
-        next_round_parameters = {p : parameters[p]
-                    for p in parameters if p != key_to_iterate}
-        for val in parameters[key_to_iterate]:
-            for pars in make_generator(next_round_parameters):
-                temp_res = pars
-                temp_res[key_to_iterate] = val
-                yield temp_res
 
 # %%
-def handle_args():
+def eval_top_n(pred, likes, n_chars, score_type):
     '''
-    Helper function to handle arguments using argparse module
+    Evaluate quality of prediction by comparing top n characters in actual likes and predictions
+    Input:
+    pred - pandas dataframe of cosine similarity values of characters relative to users 
+        -> not sure what format this will be in atm
+    likes - pandas dataframe cataloguing character likes for all users 
+        -> assume same format as likeable_likes in database
+    n_chars - number of characters to consider (will take top n_chars unique likes from likes 
+        and top n_chars predictions (i.e. with highest cosine similarities) from pred)
+    Output: returns evaluation score 
     '''
-    parser = argparse.ArgumentParser(description="Evaluates cosine similarity predictions for selected metric")
-    parser.add_argument("--pred", required=True, help = "Predictions from cosine similarity")
-    parser.add_argument("--likes", required=True, help = "File with character likes - use as ground truth")
-    parser.add_argument("--sample", type = float, default = 1.0, help = "Percentage of users to evaluate over", action=PerctAction)
-    parser.add_argument("--num_chrs", type = int, default = -1, help = "Number of characters to consider")
-    parser.add_argument("--m", choices = ["F1", "Hamming", "Jaccard"], required=True, help = "Stats metrics to use")
-    return parser.parse_args()
-
-# %%
-if __name__ == "__main__":
-    args = handle_args()
-    # Assume same format as usermatchcharacters table in database
-    pred = pd.read_csv(args.pred)
-    likes = pd.read_csv(args.likes)
-
-    #
-    # Pred data - assume same format as usermatchcharacters in database
-    #
-    # Filtering predictions
-    # By recency of last previous update
-
-    if(args.num_chrs == -1):
-        n_chars = 5 # default for now
-    else:
-        n_chars = args.num_chrs
-
     # Combining all data for filtering.
     user_info = likes.merge(pred, on = "user_id")
 
-
-    # Getting rid of any likes that occur too far away in time from character matching
-    user_info["lastupdate"] = pd.to_datetime(user_info["lastupdate"], format=r"%Y-%m-%d %H:%M:%S")
-    user_info["updated_at"] = pd.to_datetime(user_info["updated_at"], format=r"%Y-%m-%d %H:%M:%S")
-    user_info = user_info[abs(user_info["updated_at"] - user_info["lastupdate"]) < datetime.timedelta(days=60)]
-    
-    # Getting rid of any matches that occured too far in the past
-    today = datetime.date.today()
-    #user_info = user_info[today - user_info["lastupdate"].dt.date < datetime.timedelta(days=1095)]
+    ### Getting rid of these time related steps for now - not sure if recency is actually relevant enough
+    # # Getting rid of any likes that occur too far away in time from character matching
+    # user_info["lastupdate"] = pd.to_datetime(user_info["lastupdate"], format=r"%Y-%m-%d %H:%M:%S")
+    # user_info["updated_at"] = pd.to_datetime(user_info["updated_at"], format=r"%Y-%m-%d %H:%M:%S")
+    # user_info = user_info[abs(user_info["updated_at"] - user_info["lastupdate"]) < datetime.timedelta(days=60)]
+    # # Getting rid of any matches that occured too far in the past
+    # today = datetime.date.today()
+    # user_info = user_info[today - user_info["lastupdate"].dt.date < datetime.timedelta(days=1095)]
     
     # Getting rid of duplicate character likes, if there are any
     user_info = user_info.sort_values(by="updated_at", ignore_index=True)\
         .drop_duplicates(subset=["user_id", "likable_id"], keep = "first", ignore_index=True)
-    
-    # Take sample of user_ids from those with more than 5 likes
+    return user_info
+   
+    # Take sample of user_ids from those with more than n likes
     qual_u_ids = user_info.groupby(["user_id"], as_index=False)\
         .count()\
         .query("likable_id > @n_chars")["user_id"]
@@ -110,13 +96,14 @@ if __name__ == "__main__":
 
     # How should I choose which characters to evaluate, if a user has liked more characters than we want to predict? Will use most recent timestamps for now
     # TODO - numpy function to grab all top characters for each individual and add to matrix (may need to use numba)
-    top_n_likes = user_info.sort_values(by=["user_id", "updated_at"], ignore_index=True).groupby('user_id', as_index=False)\
+    top_n_likes = user_info.sort_values(by=["user_id", "updated_at"], ignore_index=True) \
+        .groupby('user_id', as_index=False) \
         .head(n_chars).reset_index(drop=True)
     top_likes = top_n_likes["likable_id"].to_numpy(dtype=np.int32) - 1
-    #["likable_id"].to_numpy()
     top_matches = top_n_likes[["user_id", "matches"]].groupby("user_id", as_index=False).head(1)
     matches_dict = pd.DataFrame(top_matches.pop("matches").apply(lambda x: dict(eval(x))))
-    top_pred = matches_dict.apply(top_n_matches, axis=1, result_type="expand", col="matches", n=5).to_numpy(dtype=np.int32).flatten() - 1
+    top_pred = matches_dict.apply(top_n_matches, axis=1, result_type="expand", col="matches", n=5) \
+        .to_numpy(dtype=np.int32).flatten() - 1
 
     true = np.zeros((sample_size, 5341), dtype=np.int8)
     pred = np.zeros((sample_size, 5341), dtype=np.int8)
@@ -128,15 +115,48 @@ if __name__ == "__main__":
     # true = csr_matrix(true)
     # pred = csr_matrix(pred)
 
-
     # TODO - implement weights using percentile score from cosine similarity 
-    if args.m == "F1":
-        #explore parameters more https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html#sklearn.metrics.f1_score
-        print(f1_score(true, pred, average = "macro"))
-    elif args.m == "Hamming":
-        print(hamming_loss(true, pred))
+    if score_type == "F1":
+        # explore parameters more https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html#sklearn.metrics.f1_score
+        return f1_score(true, pred, average = "macro")
+    elif score_type == "Hamming":
+        return hamming_loss(true, pred)
+    elif score_type == "Jaccard":
+        return jaccard_score(true, pred, average = "macro")
     else:
-        print(jaccard_score(true, pred, average = "macro"))
+        raise ValueError("The type of score specified ({}) has not been implemented.".format(score_type))
+
+# %%
+
+def eval_perct(pred, likes):
+    '''
+    Evaluate quality of predictions by checking user likes relative to their cosine similarity profiles
+    Input:
+
+    Output: ndarray of cosine similarity percentiles for user likes (can be sparse)
+    '''
+    '''
+    Quality control on likes data (avoid users with too few likes)
+    Convert likes dataframe into numpy array with missing values to pad stuff out (convert to long dataframe) see https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.pivot_table.html
+    Consider returning object with precalculated mean
+    '''
+    pass
+
+# %%
+if __name__ == "__main__":
+    args = handle_args()
+    # Assume same format as usermatchcharacters table in database
+    pred = pd.read_csv(args.pred)
+    likes = pd.read_csv(args.likes)
+
+    if(args.type == "top_n"):
+        print(eval_top_n(pred, likes, args.num_chars, args.m))
+    elif(args.type == "percentile"):
+
+
+        print(np.mean())
+
+    
     
 
 

@@ -16,7 +16,6 @@ def write_data_incr(df, name):
     df.to_csv("data/"+name+".csv", index=False, mode="a")
 
 
-
 # %%
 class mysql_pd:
     def __init__(self, info=None):
@@ -50,7 +49,7 @@ class mysql_pd:
             self.disconnect()
         return pd.concat(query_dfs)
     
-    def write_table(self, df, table_name, once=True):
+    def write_sql(self, df, table_name, once=True):
         if(once):
             self.connect()
         df.to_sql(name = table_name, con = self.conn, if_exists="replace")
