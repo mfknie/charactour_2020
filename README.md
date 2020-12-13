@@ -11,6 +11,15 @@ I am currently using a MySQL database from around 06/16/2020, containing data in
 
 ## Code
 
+### Dash prototype - dash_proto
+* This is a dash prototype meant to serve as a starting point for the dashboard. I have created a very simple 3D scatter plots of traits, showing the connection between characters in "trait space". Check the README inside that directory for more information.
+
+### Flask structure - flask_sample_files
+* I created a basic structure for flask that uses blueprints and the application factory (primarily with help from [here](https://hackersandslackers.com/flask-blueprints/) and [here](https://hackersandslackers.com/flask-application-factory/)). This can serve as the baseline 
+
+
+### General
+
 __Usable__:  
 * `mySQL.py` handles most of the reading from the MySQL database to pandas/csv, and depends on `config.py` for password/username information
 * `kmeans_eval.py` contains adapted code from sklearn documentation for constructing silhouette plots to determine kmeans clusters.
@@ -22,7 +31,8 @@ __Usable__:
   
 __Incomplete__:  
 * `cluster.py` is meant contain a wrapper class for clusterers, which would include some standardized functions useful for metrics/analysis (e.x. pcp plot)
-* `eval_pred.py` is a side project meant to evaluate classification performance (from using cosine similarlity) using F1 score, Hamming loss or Jaccard index.
+* `eval_pred.py` is a side project meant to evaluate classification performance (from using cosine similarlity) using F1 score, Hamming loss or Jaccard index. Currently, it can calculate any one of the above metrics based off the top n likes (ordered by recency) relative to the top n predictions, and has a command line interface. 
+    * TODO: A method looking at the cosine similarity percentiles of liked characters (seeing how many are in the top X% of characters).
 
 ### Jupyter Notebooks
 * `initial_dbscan_genre.ipynb` and `initial_kmeans_genre.ipynb` contain initial clustering efforts (i.e. no filtering or quality control on data) using DBscan and Kmeans respectively on user traits from the Action genre, along with EDA in the former.
