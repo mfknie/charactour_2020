@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 # %%
 from sklearn.cluster import DBSCAN, KMeans, AgglomerativeClustering
 from sklearn.decomposition import PCA
@@ -10,10 +11,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import silhouette_score, silhouette_samples
 
-def import_data(file):
-    df=pd.read_csv(file, header = 0)
-    return df.to_numpy()
-
+# def import_data(file):
+#     df=pd.read_csv(file, header = 0)
+#     return df.to_numpy()
 
 def kmeans_n_sil_plot(X, n_clusters = None):
     # Adapted from:
@@ -31,22 +31,25 @@ def kmeans_n_sil_plot(X, n_clusters = None):
         cluster_labels = kmeans.fit_predict(X)
 
         silhouette_avg = silhouette_score(X, cluster_labels)
-        print("For ", n_clusters,
-            " clusters, the average silhouette_score is :", silhouette_avg)
+        #print("Changing stuff!")
+        print(f"For {size} clusters, the average silhouette_score is : {silhouette_avg}")
 
         sample_sil_values = silhouette_samples(X, cluster_labels)
 
+        cmap = plt.get_cmap("viridis")
+
         y_lower = 10
         for i in range(size):
+            #print("Here!")
             ith_cluster_sil_values = np.sort(sample_sil_values[cluster_labels == i])
             size_cluster_i = ith_cluster_sil_values.shape[0]
             y_upper = y_lower + size_cluster_i
 
-            plt.nipy_spectral()
+            color = cmap(float(i)/size)
+            # print(color)
             ax1.fill_betweenx(y = np.arange(y_lower, y_upper),
                             x1 = 0, x2 = ith_cluster_sil_values, 
                             facecolor=color, edgecolor=color, alpha=0.7)
-
             # Label the silhouette plots with their cluster numbers at the middle
             ax1.text(-0.05, y_lower + 0.5 * size_cluster_i, str(i))
             y_lower = y_upper + 10  

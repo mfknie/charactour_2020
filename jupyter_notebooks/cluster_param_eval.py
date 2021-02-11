@@ -1,8 +1,9 @@
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
 import numpy as np
 import pandas as pd
 
+# code from https://stackoverflow.com/questions/34611038/grid-search-for-hyperparameter-evaluation-of-clustering-in-scikit-learn
 def make_generator(parameters):
     if not parameters:
         yield dict()
@@ -17,18 +18,18 @@ def make_generator(parameters):
                 yield temp_res
 
 
-def eval_cluster_size(X, sizes):
+def eval_params(X, params, algo):
     '''
-    Evaluate different cluster sizes for KMeans algorithm
+    Evaluate different parameters for cluster algorithm
     Input:
     sizes - dictionary with a single "n_clusters" key, with the value being a list of # of n_clusters
-    X - training data to run KMeans on 
+    X - training data to run clusterer
     Output:
     Dataframe with performance metrics listed for each set of algorithm parameters.
     '''
     metrics = {"n_clusters": [], "sil_score": [], "inertia": []}
-    for p in make_generator(sizes):
-        cluster = KMeans( **p, n_init = 20)
+    for p in make_generator(params):
+        cluster = algo( **p) #, n_init = 20)
         cluster.fit(X)
         for k, v in p.items():
             metrics[k].append(v)
